@@ -152,7 +152,7 @@ config:
                               [](const std::string& s) { return absl::EndsWith(s, ".pb"); });
   ASSERT_NE(pb_file, files.end());
 
-  envoy::data::tap::v2alpha::BufferedTraceWrapper trace;
+  envoy::data::tap::v2alpha::TraceWrapper trace;
   MessageUtil::loadFromFile(*pb_file, trace, *api_);
   EXPECT_TRUE(trace.has_http_buffered_trace());
 }
@@ -201,7 +201,7 @@ tap_config:
 
   // Wait for the tap message.
   admin_response_->waitForBodyData(1);
-  envoy::data::tap::v2alpha::BufferedTraceWrapper trace;
+  envoy::data::tap::v2alpha::TraceWrapper trace;
   MessageUtil::loadFromYaml(admin_response_->body(), trace);
   EXPECT_EQ(trace.http_buffered_trace().request().headers().size(), 8);
   EXPECT_EQ(trace.http_buffered_trace().response().headers().size(), 4);
@@ -299,7 +299,7 @@ tap_config:
   makeRequest(request_headers_no_tap_, {}, &request_trailers, response_headers_no_tap_, {},
               &response_trailers);
 
-  envoy::data::tap::v2alpha::BufferedTraceWrapper trace;
+  envoy::data::tap::v2alpha::TraceWrapper trace;
   admin_response_->waitForBodyData(1);
   MessageUtil::loadFromYaml(admin_response_->body(), trace);
   EXPECT_EQ("bar",
@@ -330,7 +330,7 @@ tap_config:
   codec_client_ = makeHttpConnection(makeClientConnection(lookupPort("http")));
   makeRequest(request_headers_no_tap_, {{"hello"}}, nullptr, response_headers_no_tap_, {{"world"}},
               nullptr);
-  envoy::data::tap::v2alpha::BufferedTraceWrapper trace;
+  envoy::data::tap::v2alpha::TraceWrapper trace;
   admin_response_->waitForBodyData(1);
   MessageUtil::loadFromYaml(admin_response_->body(), trace);
   EXPECT_EQ("hello", trace.http_buffered_trace().request().body().as_bytes());
@@ -362,7 +362,7 @@ tap_config:
   codec_client_ = makeHttpConnection(makeClientConnection(lookupPort("http")));
   makeRequest(request_headers_no_tap_, {{"hello"}}, nullptr, response_headers_no_tap_, {{"world"}},
               nullptr);
-  envoy::data::tap::v2alpha::BufferedTraceWrapper trace;
+  envoy::data::tap::v2alpha::TraceWrapper trace;
   admin_response_->waitForBodyData(1);
   MessageUtil::loadFromYaml(admin_response_->body(), trace);
   EXPECT_EQ("hello", trace.http_buffered_trace().request().body().as_string());
@@ -395,7 +395,7 @@ tap_config:
   codec_client_ = makeHttpConnection(makeClientConnection(lookupPort("http")));
   makeRequest(request_headers_no_tap_, {{"hello"}}, nullptr, response_headers_no_tap_, {{"world"}},
               nullptr);
-  envoy::data::tap::v2alpha::BufferedTraceWrapper trace;
+  envoy::data::tap::v2alpha::TraceWrapper trace;
   admin_response_->waitForBodyData(1);
   MessageUtil::loadFromYaml(admin_response_->body(), trace);
   EXPECT_EQ("hel", trace.http_buffered_trace().request().body().as_bytes());

@@ -31,3 +31,35 @@ message HttpBufferedTrace {
   // Response message.
   Message response = 2;
 }
+
+// fixfix
+message HttpStreamedTrace {
+  // fixfix
+  message HeaderMap {
+    // fixfix
+    repeated api.v2.core.HeaderValue headers = 1;
+  }
+
+  // fixfix
+  uint64 trace_id = 1;
+
+  oneof message_piece {
+    // fixfix
+    HeaderMap request_headers = 2;
+
+    // fixfix
+    Body request_body_chunk = 3;
+
+    // fixfix
+    HeaderMap request_trailers = 4;
+
+    // fixfix
+    HeaderMap response_headers = 5;
+
+    // fixfix
+    Body response_body_chunk = 6;
+
+    // fixfix
+    HeaderMap response_trailers = 7;
+  }
+}

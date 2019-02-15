@@ -13,6 +13,28 @@ namespace Common {
 namespace Tap {
 
 /**
+ * fixfix
+ */
+class PerTapSinkHandle {
+public:
+  virtual ~PerTapSinkHandle() = default;
+
+  /**
+   * Send a fully buffered trace to the sink. fixfix
+   * @param trace supplies the trace to send. The trace message is a discrete trace message (as
+   *        opposed to a portion of a larger trace that should be aggregated).
+   * @param format supplies the output format to use.
+   * @param trace_id supplies a locally unique trace ID. Some sinks use this for output generation.
+   */
+  virtual void
+  submitTrace(const std::shared_ptr<envoy::data::tap::v2alpha::TraceWrapper>& trace,
+                      envoy::service::tap::v2alpha::OutputSink::Format format,
+                      uint64_t trace_id) PURE;
+};
+
+using PerTapSinkHandlePtr = std::unique_ptr<PerTapSinkHandle>;
+
+/**
  * Sink for sending tap messages.
  */
 class Sink {
@@ -20,16 +42,9 @@ public:
   virtual ~Sink() = default;
 
   /**
-   * Send a fully buffered trace to the sink.
-   * @param trace supplies the trace to send. The trace message is a discrete trace message (as
-   *        opposed to a portion of a larger trace that should be aggregated).
-   * @param format supplies the output format to use.
-   * @param trace_id supplies a locally unique trace ID. Some sinks use this for output generation.
+   * fixfix
    */
-  virtual void
-  submitBufferedTrace(const std::shared_ptr<envoy::data::tap::v2alpha::BufferedTraceWrapper>& trace,
-                      envoy::service::tap::v2alpha::OutputSink::Format format,
-                      uint64_t trace_id) PURE;
+  virtual PerTapSinkHandlePtr createPerTapSinkHandle() PURE;
 };
 
 using SinkPtr = std::unique_ptr<Sink>;

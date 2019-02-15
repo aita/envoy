@@ -6,6 +6,8 @@
 #include "extensions/common/tap/tap.h"
 #include "extensions/common/tap/tap_matcher.h"
 
+#include <fstream>
+
 namespace Envoy {
 namespace Extensions {
 namespace Common {
@@ -62,9 +64,9 @@ public:
   uint32_t maxBufferedTxBytes() const { return max_buffered_tx_bytes_; }
   size_t numMatchers() const { return matchers_.size(); }
   Matcher& rootMatcher() const;
-  void
-  submitBufferedTrace(const std::shared_ptr<envoy::data::tap::v2alpha::BufferedTraceWrapper>& trace,
-                      uint64_t trace_id);
+  /*void
+  submitBufferedTrace(const std::shared_ptr<envoy::data::tap::v2alpha::TraceWrapper>& trace,
+                      uint64_t trace_id);fixfix*/
 
 protected:
   TapConfigBaseImpl(envoy::service::tap::v2alpha::TapConfig&& proto_config,
@@ -91,12 +93,24 @@ public:
   FilePerTapSink(const envoy::service::tap::v2alpha::FilePerTapSink& config) : config_(config) {}
 
   // Sink
-  void
-  submitBufferedTrace(const std::shared_ptr<envoy::data::tap::v2alpha::BufferedTraceWrapper>& trace,
-                      envoy::service::tap::v2alpha::OutputSink::Format format,
-                      uint64_t trace_id) override;
+  PerTapSinkHandlePtr createPerTapSinkHandle() override {
+    return std::make_unique<FilePerTapSinkHandle>(*this);
+  }
 
 private:
+  struct FilePerTapSinkHandle : public PerTapSinkHandle {
+    FilePerTapSinkHandle(FilePerTapSink& parent) : parent_(parent) {}
+
+    // PerTapSinkHandle
+    void
+    submitTrace(const std::shared_ptr<envoy::data::tap::v2alpha::TraceWrapper>& trace,
+                        envoy::service::tap::v2alpha::OutputSink::Format format,
+                        uint64_t trace_id) override;
+
+    FilePerTapSink& parent_;
+    std::ofstream output_file_;
+  };
+
   const envoy::service::tap::v2alpha::FilePerTapSink config_;
 };
 

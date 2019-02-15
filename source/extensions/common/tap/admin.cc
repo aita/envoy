@@ -99,8 +99,8 @@ void AdminHandler::unregisterConfig(ExtensionConfig& config) {
   }
 }
 
-void AdminHandler::submitBufferedTrace(
-    const std::shared_ptr<envoy::data::tap::v2alpha::BufferedTraceWrapper>& trace,
+void AdminHandler::submitTrace(
+    const std::shared_ptr<envoy::data::tap::v2alpha::TraceWrapper>& trace,
     envoy::service::tap::v2alpha::OutputSink::Format format, uint64_t) {
   ENVOY_LOG(debug, "admin submitting buffered trace to main thread");
   main_thread_dispatcher_.post([this, trace, format]() {

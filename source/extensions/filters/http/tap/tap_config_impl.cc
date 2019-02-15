@@ -78,7 +78,7 @@ bool HttpPerRequestTapperImpl::onDestroyLog(const Http::HeaderMap* request_heade
   }
 
   ENVOY_LOG(debug, "submitting buffered trace sink");
-  config_->submitBufferedTrace(trace_, stream_id_);
+  //fixfixconfig_->submitBufferedTrace(trace_, stream_id_);
   return true;
 }
 

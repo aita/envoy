@@ -60,8 +60,8 @@ message SocketEvent {
 
 // Sequence of read/write events that constitute a trace on a socket.
 // Multiple Trace messages might be emitted for a given connection ID, with the
-// sink (e.g. file set, network) responsible for later reassembly.
-message SocketTrace {
+// sink (e.g. file set, network) responsible for later reassembly. fixfix
+message BufferedSocketTrace {
   // Connection properties.
   Connection connection = 1;
 
@@ -75,4 +75,8 @@ message SocketTrace {
   // Set to true if write events were truncated due to the :ref:`max_buffered_tx_bytes
   // <envoy_api_field_service.tap.v2alpha.OutputConfig.max_buffered_tx_bytes>` setting.
   bool write_truncated = 4;
+}
+
+// fixfix
+message StreamedSocketTrace {
 }

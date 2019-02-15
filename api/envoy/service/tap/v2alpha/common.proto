@@ -121,12 +121,18 @@ message OutputSink {
     // this output format makes consumption simpler.
     PROTO_BINARY = 2;
 
+    // fixfix
+    PROTO_BINARY_LENGTH_DELIMITED = 3;
+
     // Text proto format.
-    PROTO_TEXT = 3;
+    PROTO_TEXT = 4;
   }
 
   // Sink output format.
   Format format = 1 [(validate.rules).enum.defined_only = true];
+
+  // fixfix
+  bool streaming = 2;
 
   oneof output_sink_type {
     option (validate.required) = true;
@@ -139,10 +145,10 @@ message OutputSink {
     //   configured from the :http:post:`/tap` admin endpoint. Thus, if an extension has
     //   been configured to receive tap configuration from some other source (e.g., static
     //   file, XDS, etc.) configuring the streaming admin output type will fail.
-    StreamingAdminSink streaming_admin = 2;
+    StreamingAdminSink streaming_admin = 3;
 
     // Tap output will be written to a file per tap sink.
-    FilePerTapSink file_per_tap = 3;
+    FilePerTapSink file_per_tap = 4;
   }
 }
 

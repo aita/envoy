@@ -51,7 +51,7 @@ public:
 
   // Extensions::Common::Tap::Sink
   void
-  submitBufferedTrace(const std::shared_ptr<envoy::data::tap::v2alpha::BufferedTraceWrapper>& trace,
+  submitTrace(const std::shared_ptr<envoy::data::tap::v2alpha::TraceWrapper>& trace,
                       envoy::service::tap::v2alpha::OutputSink::Format format,
                       uint64_t trace_id) override;
 
