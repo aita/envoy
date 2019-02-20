@@ -20,6 +20,8 @@ public:
   const std::string DubboProxy = "envoy.filters.network.dubbo_proxy";
   // HTTP connection manager filter
   const std::string HttpConnectionManager = "envoy.http_connection_manager";
+  // Memcache proxy filter
+  const std::string MemcacheProxy = "envoy.memcache_proxy";
   // Mongo proxy filter
   const std::string MongoProxy = "envoy.mongo_proxy";
   // MySQL proxy filter

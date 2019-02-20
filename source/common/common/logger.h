@@ -39,6 +39,7 @@ namespace Logger {
   FUNCTION(init)                 \
   FUNCTION(lua)                  \
   FUNCTION(main)                 \
+  FUNCTION(memcache)             \
   FUNCTION(misc)                 \
   FUNCTION(mongo)                \
   FUNCTION(quic)                 \
