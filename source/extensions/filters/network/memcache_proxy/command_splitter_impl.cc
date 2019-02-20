@@ -75,30 +75,6 @@ SplitRequestPtr SimpleRequest::create(ConnPool::Instance& conn_pool,
   return std::move(request_ptr);
 }
 
-SplitRequestPtr EvalRequest::create(ConnPool::Instance& conn_pool,
-                                    const RespValue& incoming_request, SplitCallbacks& callbacks,
-                                    CommandStats& command_stats, TimeSource& time_source) {
-
-  // EVAL looks like: EVAL script numkeys key [key ...] arg [arg ...]
-  // Ensure there are at least three args to the command or it cannot be hashed.
-  if (incoming_request.asArray().size() < 4) {
-    onWrongNumberOfArguments(callbacks, incoming_request);
-    command_stats.error_.inc();
-    return nullptr;
-  }
-
-  std::unique_ptr<EvalRequest> request_ptr{new EvalRequest(callbacks, command_stats, time_source)};
-  request_ptr->handle_ = conn_pool.makeRequest(incoming_request.asArray()[3].asString(),
-                                               incoming_request, *request_ptr);
-  if (!request_ptr->handle_) {
-    command_stats.error_.inc();
-    request_ptr->callbacks_.onResponse(Utility::makeError(Response::get().NoUpstreamHost));
-    return nullptr;
-  }
-
-  return std::move(request_ptr);
-}
-
 FragmentedRequest::~FragmentedRequest() {
 #ifndef NDEBUG
   for (const PendingRequest& request : pending_requests_) {
@@ -120,10 +96,10 @@ void FragmentedRequest::onChildFailure(uint32_t index) {
   onChildResponse(Utility::makeError(Response::get().UpstreamFailure), index);
 }
 
-SplitRequestPtr MGETRequest::create(ConnPool::Instance& conn_pool,
-                                    const RespValue& incoming_request, SplitCallbacks& callbacks,
-                                    CommandStats& command_stats, TimeSource& time_source) {
-  std::unique_ptr<MGETRequest> request_ptr{new MGETRequest(callbacks, command_stats, time_source)};
+SplitRequestPtr GETRequest::create(ConnPool::Instance& conn_pool, const RespValue& incoming_request,
+                                   SplitCallbacks& callbacks, CommandStats& command_stats,
+                                   TimeSource& time_source) {
+  std::unique_ptr<GETRequest> request_ptr{new GETRequest(callbacks, command_stats, time_source)};
 
   request_ptr->num_pending_responses_ = incoming_request.asArray().size() - 1;
   request_ptr->pending_requests_.reserve(request_ptr->num_pending_responses_);
@@ -157,7 +133,7 @@ SplitRequestPtr MGETRequest::create(ConnPool::Instance& conn_pool,
   return request_ptr->num_pending_responses_ > 0 ? std::move(request_ptr) : nullptr;
 }
 
-void MGETRequest::onChildResponse(RespValuePtr&& value, uint32_t index) {
+void GETRequest::onChildResponse(RespValuePtr&& value, uint32_t index) {
   pending_requests_[index].handle_ = nullptr;
 
   pending_response_->asArray()[index].type(value->type());
@@ -187,79 +163,6 @@ void MGETRequest::onChildResponse(RespValuePtr&& value, uint32_t index) {
     updateStats(error_count_ == 0);
     ENVOY_LOG(debug, "memcache: response: '{}'", pending_response_->toString());
     callbacks_.onResponse(std::move(pending_response_));
-  }
-}
-
-SplitRequestPtr MSETRequest::create(ConnPool::Instance& conn_pool,
-                                    const RespValue& incoming_request, SplitCallbacks& callbacks,
-                                    CommandStats& command_stats, TimeSource& time_source) {
-  if ((incoming_request.asArray().size() - 1) % 2 != 0) {
-    onWrongNumberOfArguments(callbacks, incoming_request);
-    command_stats.error_.inc();
-    return nullptr;
-  }
-  std::unique_ptr<MSETRequest> request_ptr{new MSETRequest(callbacks, command_stats, time_source)};
-
-  request_ptr->num_pending_responses_ = (incoming_request.asArray().size() - 1) / 2;
-  request_ptr->pending_requests_.reserve(request_ptr->num_pending_responses_);
-
-  request_ptr->pending_response_ = std::make_unique<RespValue>();
-  request_ptr->pending_response_->type(RespType::SimpleString);
-
-  std::vector<RespValue> values(3);
-  values[0].type(RespType::BulkString);
-  values[0].asString() = "set";
-  values[1].type(RespType::BulkString);
-  values[2].type(RespType::BulkString);
-  RespValue single_mset;
-  single_mset.type(RespType::Array);
-  single_mset.asArray().swap(values);
-
-  uint64_t fragment_index = 0;
-  for (uint64_t i = 1; i < incoming_request.asArray().size(); i += 2) {
-    request_ptr->pending_requests_.emplace_back(*request_ptr, fragment_index++);
-    PendingRequest& pending_request = request_ptr->pending_requests_.back();
-
-    single_mset.asArray()[1].asString() = incoming_request.asArray()[i].asString();
-    single_mset.asArray()[2].asString() = incoming_request.asArray()[i + 1].asString();
-
-    ENVOY_LOG(debug, "memcache: parallel set: '{}'", single_mset.toString());
-    pending_request.handle_ = conn_pool.makeRequest(incoming_request.asArray()[i].asString(),
-                                                    single_mset, pending_request);
-    if (!pending_request.handle_) {
-      pending_request.onResponse(Utility::makeError(Response::get().NoUpstreamHost));
-    }
-  }
-
-  return request_ptr->num_pending_responses_ > 0 ? std::move(request_ptr) : nullptr;
-}
-
-void MSETRequest::onChildResponse(RespValuePtr&& value, uint32_t index) {
-  pending_requests_[index].handle_ = nullptr;
-
-  switch (value->type()) {
-  case RespType::SimpleString: {
-    if (value->asString() == Response::get().OK) {
-      break;
-    }
-    FALLTHRU;
-  }
-  default: {
-    error_count_++;
-    break;
-  }
-  }
-
-  ASSERT(num_pending_responses_ > 0);
-  if (--num_pending_responses_ == 0) {
-    updateStats(error_count_ == 0);
-    if (error_count_ == 0) {
-      pending_response_->asString() = Response::get().OK;
-      callbacks_.onResponse(std::move(pending_response_));
-    } else {
-      callbacks_.onResponse(
-          Utility::makeError(fmt::format("finished with {} error(s)", error_count_)));
-    }
   }
 }
 
@@ -332,24 +235,18 @@ void SplitKeysSumResultRequest::onChildResponse(RespValuePtr&& value, uint32_t i
 InstanceImpl::InstanceImpl(ConnPool::InstancePtr&& conn_pool, Stats::Scope& scope,
                            const std::string& stat_prefix, TimeSource& time_source)
     : conn_pool_(std::move(conn_pool)), simple_command_handler_(*conn_pool_),
-      eval_command_handler_(*conn_pool_), mget_handler_(*conn_pool_), mset_handler_(*conn_pool_),
-      split_keys_sum_result_handler_(*conn_pool_),
+      get_handler_(*conn_pool_), split_keys_sum_result_handler_(*conn_pool_),
       stats_{ALL_COMMAND_SPLITTER_STATS(POOL_COUNTER_PREFIX(scope, stat_prefix + "splitter."))},
       time_source_(time_source) {
   for (const std::string& command : SupportedCommands::simpleCommands()) {
     addHandler(scope, stat_prefix, command, simple_command_handler_);
   }
 
-  for (const std::string& command : SupportedCommands::evalCommands()) {
-    addHandler(scope, stat_prefix, command, eval_command_handler_);
-  }
-
   for (const std::string& command : SupportedCommands::hashMultipleSumResultCommands()) {
     addHandler(scope, stat_prefix, command, split_keys_sum_result_handler_);
   }
 
-  addHandler(scope, stat_prefix, SupportedCommands::mget(), mget_handler_);
-  addHandler(scope, stat_prefix, SupportedCommands::mset(), mset_handler_);
+  addHandler(scope, stat_prefix, SupportedCommands::get(), get_handler_);
 }
 
 SplitRequestPtr InstanceImpl::makeRequest(const RespValue& request, SplitCallbacks& callbacks) {
@@ -360,15 +257,6 @@ SplitRequestPtr InstanceImpl::makeRequest(const RespValue& request, SplitCallbac
 
   std::string to_lower_string(request.asArray()[0].asString());
   to_lower_table_.toLowerCase(to_lower_string);
-
-  if (to_lower_string == SupportedCommands::ping()) {
-    // Respond to PING locally.
-    RespValuePtr pong(new RespValue());
-    pong->type(RespType::SimpleString);
-    pong->asString() = "PONG";
-    callbacks.onResponse(std::move(pong));
-    return nullptr;
-  }
 
   if (request.asArray().size() < 2) {
     // Commands other than PING all have at least two arguments.

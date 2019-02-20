@@ -122,20 +122,6 @@ private:
 };
 
 /**
- * EvalRequest hashes the fourth argument as the key.
- */
-class EvalRequest : public SingleServerRequest {
-public:
-  static SplitRequestPtr create(ConnPool::Instance& conn_pool, const RespValue& incoming_request,
-                                SplitCallbacks& callbacks, CommandStats& command_stats,
-                                TimeSource& time_source);
-
-private:
-  EvalRequest(SplitCallbacks& callbacks, CommandStats& command_stats, TimeSource& time_source)
-      : SingleServerRequest(callbacks, command_stats, time_source) {}
-};
-
-/**
  * FragmentedRequest is a base class for requests that contains multiple keys. An individual request
  * is sent to the appropriate server for each key. The responses from all servers are combined and
  * returned to the client.
@@ -179,14 +165,14 @@ protected:
  * MGETRequest takes each key from the command and sends a GET for each to the appropriate Memcache
  * server. The response contains the result from each command.
  */
-class MGETRequest : public FragmentedRequest, Logger::Loggable<Logger::Id::memcache> {
+class GETRequest : public FragmentedRequest, Logger::Loggable<Logger::Id::memcache> {
 public:
   static SplitRequestPtr create(ConnPool::Instance& conn_pool, const RespValue& incoming_request,
                                 SplitCallbacks& callbacks, CommandStats& command_stats,
                                 TimeSource& time_source);
 
 private:
-  MGETRequest(SplitCallbacks& callbacks, CommandStats& command_stats, TimeSource& time_source)
+  GETRequest(SplitCallbacks& callbacks, CommandStats& command_stats, TimeSource& time_source)
       : FragmentedRequest(callbacks, command_stats, time_source) {}
 
   // MemcacheProxy::CommandSplitter::FragmentedRequest
@@ -214,25 +200,6 @@ private:
   void onChildResponse(RespValuePtr&& value, uint32_t index) override;
 
   int64_t total_{0};
-};
-
-/**
- * MSETRequest takes each key and value pair from the command and sends a SET for each to the
- * appropriate Memcache server. The response is an OK if all commands succeeded or an ERR if any
- * failed.
- */
-class MSETRequest : public FragmentedRequest, Logger::Loggable<Logger::Id::memcache> {
-public:
-  static SplitRequestPtr create(ConnPool::Instance& conn_pool, const RespValue& incoming_request,
-                                SplitCallbacks& callbacks, CommandStats& command_stats,
-                                TimeSource& time_source);
-
-private:
-  MSETRequest(SplitCallbacks& callbacks, CommandStats& command_stats, TimeSource& time_source)
-      : FragmentedRequest(callbacks, command_stats, time_source) {}
-
-  // MemcacheProxy::CommandSplitter::FragmentedRequest
-  void onChildResponse(RespValuePtr&& value, uint32_t index) override;
 };
 
 /**
@@ -287,9 +254,7 @@ private:
 
   ConnPool::InstancePtr conn_pool_;
   CommandHandlerFactory<SimpleRequest> simple_command_handler_;
-  CommandHandlerFactory<EvalRequest> eval_command_handler_;
-  CommandHandlerFactory<MGETRequest> mget_handler_;
-  CommandHandlerFactory<MSETRequest> mset_handler_;
+  CommandHandlerFactory<GETRequest> get_handler_;
   CommandHandlerFactory<SplitKeysSumResultRequest> split_keys_sum_result_handler_;
   TrieLookupTable<HandlerDataPtr> handler_lookup_table_;
   InstanceStats stats_;
